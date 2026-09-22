@@ -1,6 +1,8 @@
 .venv/
 certs/
 config.json
+secrets.json
+clips/
 __pycache__/
 *.pyc
 web/icon.png

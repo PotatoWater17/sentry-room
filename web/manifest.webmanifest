@@ -4,8 +4,8 @@
   "description": "Watch this PC's camera and play sound through its speakers.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#141910",
-  "theme_color": "#141910",
+  "background_color": "#f4f8fc",
+  "theme_color": "#1565c0",
   "icons": [
     {
       "src": "/static/icon.png",

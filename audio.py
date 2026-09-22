@@ -131,7 +131,8 @@ def _siren() -> np.ndarray:
 
 BUILTIN_SOUNDS = [
     {"id": "doorbell", "label": "Doorbell", "loop": False, "file": None, "synth": "doorbell"},
-    {"id": "knock", "label": "Knock", "loop": False, "file": None, "synth": "knock"},
+    # sounds/knock.wav is the last three hits from BigSoundBank 0015, CC0, Joseph Sardin.
+    {"id": "knock", "label": "Knock", "loop": False, "file": "knock.wav", "bundled": True, "synth": "knock"},
     {"id": "phone", "label": "Phone", "loop": False, "file": "Ring01.wav", "synth": "phone"},
     {"id": "chime", "label": "Chime", "loop": False, "file": "chimes.wav", "synth": "chime"},
     {"id": "ding", "label": "Ding", "loop": False, "file": "ding.wav", "synth": "ding"},
@@ -145,7 +146,7 @@ BUILTIN_SOUNDS = [
 ]
 
 
-def load_wav(path: Path) -> np.ndarray | None:
+def load_wav(path: Path, fade_ms: float = 8) -> np.ndarray | None:
     try:
         with wave.open(str(path), "rb") as handle:
             channels = handle.getnchannels()
@@ -167,7 +168,7 @@ def load_wav(path: Path) -> np.ndarray | None:
         data = data[:usable].reshape(-1, channels).mean(axis=1)
     if rate <= 0 or data.size == 0:
         return None
-    return _fade(_normalize(resample(data, rate, RATE)))
+    return _fade(_normalize(resample(data, rate, RATE)), fade_ms)
 
 
 def _slug(name: str) -> str:
@@ -196,17 +197,21 @@ def load_sounds(custom_dir: Path) -> list[Sound]:
         samples = None
         kind = "synthesized"
         if item["file"]:
-            loaded = load_wav(WINDOWS_MEDIA / item["file"])
+            source = custom_dir / item["file"] if item.get("bundled") else WINDOWS_MEDIA / item["file"]
+            loaded = load_wav(source, 2 if item.get("bundled") else 8)
             if loaded is not None and loaded.size:
                 samples = loaded
-                kind = "windows"
+                kind = "recorded" if item.get("bundled") else "windows"
         if samples is None:
             samples = _fade(_normalize(np.asarray(SYNTH[item["synth"]](), dtype=np.float32)))
         sounds.append(Sound(item["id"], item["label"], item["loop"], samples, kind))
         seen.add(item["id"])
 
     custom_dir.mkdir(parents=True, exist_ok=True)
+    bundled_names = {str(item["file"]).lower() for item in BUILTIN_SOUNDS if item.get("bundled") and item.get("file")}
     for path in sorted(custom_dir.glob("*.wav")):
+        if path.name.lower() in bundled_names:
+            continue
         loaded = load_wav(path)
         if loaded is None or loaded.size == 0:
             continue
@@ -466,6 +471,10 @@ class AudioEngine:
         self.loop_pos = 0
         self.listeners: dict[asyncio.Queue, str] = {}
         self.talking: dict[str, float] = {}
+        self.hold_input = False
+        self.loudness = 0.0
+        self._pre = np.zeros(0, dtype=np.float32)
+        self._grab: list[np.ndarray] | None = None
         self._lock = __import__("threading").Lock()
         self._cb_logged = False
 
@@ -664,8 +673,32 @@ class AudioEngine:
 
     def remove_listener(self, queue: asyncio.Queue) -> None:
         self.listeners.pop(queue, None)
+        if not self.listeners and not self.hold_input:
+            self._stop_input()
+
+    def any_talking(self) -> bool:
+        now = time.monotonic()
+        return any(until > now for until in self.talking.values())
+
+    def release_input_hold(self) -> None:
+        self.hold_input = False
         if not self.listeners:
             self._stop_input()
+
+    def start_grab(self) -> tuple[np.ndarray, int]:
+        with self._lock:
+            pre = self._pre.copy()
+            self._grab = []
+        return pre, int(self.input_rate or RATE)
+
+    def stop_grab(self) -> tuple[np.ndarray, int]:
+        with self._lock:
+            parts = self._grab or []
+            self._grab = None
+            rate = int(self.input_rate or RATE)
+        if not parts:
+            return np.zeros(0, dtype=np.float32), rate
+        return np.concatenate(parts), rate
 
     def mark_talking(self, client_id: str) -> None:
         self.talking[client_id[:64]] = time.monotonic() + 0.5
@@ -760,6 +793,8 @@ class AudioEngine:
             self.oneshot = np.concatenate([self.oneshot, tone])
 
     def _stop_input(self) -> None:
+        if self.hold_input:
+            return
         stream = self.in_stream
         self.in_stream = None
         if stream is not None:
@@ -773,7 +808,16 @@ class AudioEngine:
         loop = self.loop
         if loop is None or loop.is_closed():
             return
-        mono = indata[:, 0] if getattr(indata, "ndim", 1) > 1 else indata
+        mono = np.asarray(indata[:, 0] if getattr(indata, "ndim", 1) > 1 else indata, dtype=np.float32).reshape(-1)
+        if mono.size:
+            self.loudness = float(np.sqrt(np.mean(mono * mono)))
+            with self._lock:
+                self._pre = np.concatenate([self._pre, mono])
+                keep = max(int(self.input_rate or RATE), 8000)
+                if self._pre.size > keep:
+                    self._pre = self._pre[-keep:]
+                if self._grab is not None:
+                    self._grab.append(mono.copy())
         pcm = (np.clip(mono, -1.0, 1.0) * 32767.0).astype(np.int16).tobytes()
         loop.call_soon_threadsafe(self._fanout, pcm)
 

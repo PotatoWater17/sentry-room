@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 import threading
 import time
+from collections import deque
 from pathlib import Path
 
 import cv2
@@ -22,10 +23,10 @@ def write_icon(path: Path) -> None:
     if path.exists():
         return
     img = np.zeros((180, 180, 3), np.uint8)
-    img[:] = (18, 24, 16)
-    cv2.circle(img, (90, 90), 64, (2, 162, 240), -1)
-    cv2.circle(img, (90, 90), 26, (16, 22, 14), -1)
-    cv2.circle(img, (104, 72), 8, (245, 248, 255), -1)
+    img[:] = (252, 248, 244)
+    cv2.circle(img, (90, 90), 64, (192, 101, 21), -1)
+    cv2.circle(img, (90, 90), 26, (252, 248, 244), -1)
+    cv2.circle(img, (104, 72), 8, (255, 255, 255), -1)
     path.parent.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(path), img)
 
@@ -70,28 +71,76 @@ def _pnp_camera_names() -> list[str]:
 
 
 class Camera:
-    def __init__(self, index: int, width: int, fps: int, quality: int, mirror: bool) -> None:
-        self.index = int(index)
+    def __init__(self, width: int, fps: int, quality: int, mirror: bool) -> None:
+        self.index: int | None = None
         self.width = int(width)
         self.fps = max(2, int(fps))
         self.quality = int(quality)
         self.mirror = bool(mirror)
         self.stop_flag = False
         self.restart_flag = False
-        self._did_scan = False
         self._devices: list[dict] = []
-        self.error = "Starting camera..."
+        self._listed = False
+        self.error = "Choose a camera to turn the picture on."
         self.frame_at = 0.0
         self.frame_w = 0
         self.frame_h = 0
         self._jpeg = self._message_frame(self.error)
+        self.motion = 0.0
+        self._prev_gray = None
+        self._recent: deque[bytes] = deque(maxlen=max(2, self.fps))
         self._lock = threading.Lock()
+        self._thread: threading.Thread | None = None
+
+    def is_running(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
+
+    def devices(self) -> list[dict]:
+        if not self._listed:
+            self._listed = True
+            names = _pnp_camera_names()
+            count = min(6, max(4, len(names)))
+            labels = [names[index] if index < len(names) else f"Camera {index + 1}" for index in range(count)]
+            self._remember_devices([
+                {"index": index, "label": label, "width": 0, "height": 0}
+                for index, label in enumerate(labels)
+            ])
+        with self._lock:
+            return [dict(item) for item in self._devices]
+
+    def arm(self, index: int) -> None:
+        self.index = int(index)
+        self.stop_flag = False
+        self.restart_flag = True
+        self.error = "Starting camera..."
+        if self.is_running():
+            return
         self._thread = threading.Thread(target=self._run, name="sentry-camera", daemon=True)
         self._thread.start()
+
+    def release(self) -> None:
+        self.stop_flag = True
+        self.restart_flag = False
+        thread = self._thread
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=2)
+        self._thread = None
+        with self._lock:
+            self.index = None
+            self.frame_at = 0.0
+            self.motion = 0.0
+            self._prev_gray = None
+            self._recent.clear()
+            self.error = "Camera is off."
+            self._jpeg = self._message_frame("Camera is off. Choose one to turn the picture on.")
 
     def latest_jpeg(self) -> bytes:
         with self._lock:
             return self._jpeg
+
+    def recent_jpegs(self) -> list[bytes]:
+        with self._lock:
+            return list(self._recent)
 
     def snapshot(self) -> dict:
         with self._lock:
@@ -109,13 +158,8 @@ class Camera:
         with self._lock:
             self._devices = devices
 
-    def set_index(self, index: int) -> None:
-        self.index = int(index)
-        self.restart_flag = True
-
     def stop(self) -> None:
-        self.stop_flag = True
-        self._thread.join(timeout=2)
+        self.release()
 
     def _set_frame(self, jpeg: bytes, error: str | None, width: int, height: int, live: bool) -> None:
         with self._lock:
@@ -125,6 +169,7 @@ class Camera:
             self.frame_h = height
             if live:
                 self.frame_at = time.monotonic()
+                self._recent.append(jpeg)
 
     def _message_frame(self, message: str) -> bytes:
         img = np.zeros((540, 960, 3), np.uint8)
@@ -151,6 +196,18 @@ class Camera:
             cap.release()
         return None
 
+    def _measure_motion(self, frame: np.ndarray) -> None:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        small = cv2.resize(gray, (160, 90), interpolation=cv2.INTER_AREA)
+        small = cv2.GaussianBlur(small, (5, 5), 0)
+        previous = self._prev_gray
+        self._prev_gray = small
+        if previous is None or previous.shape != small.shape:
+            self.motion = 0.0
+            return
+        delta = cv2.absdiff(previous, small)
+        self.motion = float(np.mean(delta)) / 255.0
+
     def _encode(self, frame: np.ndarray) -> bytes | None:
         h, w = frame.shape[:2]
         if w > self.width:
@@ -172,31 +229,35 @@ class Camera:
         cap: cv2.VideoCapture | None = None
         misses = 0
         period = 1 / self.fps
+        opened_index: int | None = None
         try:
             while not self.stop_flag:
                 started = time.monotonic()
-                if cap is None or self.restart_flag:
+                wanted = self.index
+                if wanted is None:
+                    if cap is not None:
+                        cap.release()
+                        cap = None
+                        opened_index = None
+                    time.sleep(0.2)
+                    continue
+                if cap is None or self.restart_flag or opened_index != wanted:
                     self.restart_flag = False
                     if cap is not None:
                         cap.release()
                         cap = None
-                    cap = self._open(self.index)
+                    cap = self._open(wanted)
+                    opened_index = wanted
                     misses = 0
                     if cap is None:
-                        if not self._did_scan:
-                            self._did_scan = True
-                            found = self._probe()
-                            self._remember_devices(found)
-                            if found and not any(item["index"] == self.index for item in found):
-                                self.index = int(found[0]["index"])
-                                continue
                         message = (
-                            f"No camera found at index {self.index}. "
-                            "Choose another camera below, and allow desktop apps to use the camera in Windows."
+                            f"Could not open camera {wanted + 1}. "
+                            "Choose another one, and allow desktop apps to use the camera in Windows."
                         )
                         self._set_frame(self._message_frame(message), message, 960, 540, False)
                         time.sleep(1.2)
                         continue
+                    print(f"Camera {wanted + 1} is on.", flush=True)
                 ok, frame = cap.read()
                 if not ok or frame is None:
                     misses += 1
@@ -208,54 +269,21 @@ class Camera:
                         self._set_frame(self._message_frame(message), message, 960, 540, False)
                         cap.release()
                         cap = None
+                        opened_index = None
                         time.sleep(1.2)
                         continue
                     time.sleep(0.05)
                     continue
                 misses = 0
+                self._measure_motion(frame)
                 jpeg = self._encode(frame)
                 if jpeg:
                     self._set_frame(jpeg, None, frame.shape[1], frame.shape[0], True)
-                if not self._did_scan:
-                    self._did_scan = True
-                    cap.release()
-                    cap = None
-                    self._set_frame(self._message_frame("Checking connected cameras..."), "Checking connected cameras...", 960, 540, False)
-                    found = self._probe()
-                    if not any(item["index"] == self.index for item in found):
-                        found.insert(0, {
-                            "index": self.index,
-                            "label": f"Camera {self.index + 1}",
-                            "width": self.frame_w,
-                            "height": self.frame_h,
-                        })
-                    self._remember_devices(found)
-                    continue
                 delay = period - (time.monotonic() - started)
                 if delay > 0:
                     time.sleep(delay)
         finally:
             if cap is not None:
                 cap.release()
-
-    def _probe(self) -> list[dict]:
-        names = _pnp_camera_names()
-        found: list[dict] = []
-        for index in range(6):
-            cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
-            if not cap.isOpened():
-                cap.release()
-                continue
-            ok, frame = cap.read()
-            width = height = 0
-            if ok and frame is not None:
-                height, width = frame.shape[:2]
-            cap.release()
-            label = names[len(found)] if len(found) < len(names) else f"Camera {index + 1}"
-            if width and height:
-                label = f"{label} ({width}x{height})"
-            found.append({"index": index, "label": label, "width": width, "height": height})
-        if not found:
-            found.append({"index": self.index, "label": f"Camera {self.index + 1}", "width": 0, "height": 0})
-        print("Cameras: " + ", ".join(item["label"] for item in found), flush=True)
-        return found
+            if self.index is not None:
+                print("Camera is off.", flush=True)

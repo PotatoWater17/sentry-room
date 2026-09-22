@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#141910">
+  <meta name="theme-color" content="#1565c0">
   <meta name="robots" content="noindex">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Sentry Room">
@@ -22,13 +22,33 @@
       </div>
       <h1>Open the room</h1>
       <p id="login-host" class="muted">This PC's camera and speakers.</p>
-      <label class="field" for="pin">PIN
-        <input id="pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="32" required autofocus>
+      <label class="field" for="pin">Code
+        <input id="pin" name="pin" type="password" autocomplete="current-password" maxlength="64" required autofocus>
       </label>
-      <button id="reveal" class="texty" type="button">Show PIN</button>
+      <button id="reveal" class="texty" type="button">Show code</button>
       <p id="login-error" class="alert" hidden></p>
       <button class="primary" type="submit">Open monitor</button>
-      <p class="fine">The PIN is printed in the Sentry Room window on the PC. Add this page to your home screen to use it like an app.</p>
+      <p class="fine">Use the code you created for this PC. It is not printed in the window or saved as readable text.</p>
+    </form>
+  </main>
+
+  <main id="setup" class="view" hidden>
+    <form id="setup-form" class="card">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="11" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="4"/></svg>
+        <span>Sentry Room</span>
+      </div>
+      <h1>Create your code</h1>
+      <p class="muted">This code unlocks the camera and speakers. Pick something you can remember. A longer code is harder to guess.</p>
+      <label class="field" for="setup-pin">New code
+        <input id="setup-pin" type="password" autocomplete="new-password" minlength="6" maxlength="64" required autofocus>
+      </label>
+      <label class="field" for="setup-confirm">Confirm code
+        <input id="setup-confirm" type="password" autocomplete="new-password" minlength="6" maxlength="64" required>
+      </label>
+      <p id="setup-error" class="alert" hidden></p>
+      <button class="primary" type="submit">Save code</button>
+      <p class="fine">The code is stored as a hash on this PC. Opening the folder does not show it.</p>
     </form>
   </main>
 
@@ -52,7 +72,7 @@
           <img id="video" alt="Live view from the PC webcam">
           <div class="live"><i></i> Live</div>
           <button id="full" class="overlay" type="button">Full screen</button>
-          <p id="connecting">Starting camera…</p>
+          <p id="connecting">Choose a camera</p>
         </div>
         <p id="camera-note" class="note" hidden></p>
         <label class="picker">Camera
@@ -61,6 +81,39 @@
       </section>
 
       <section class="panel">
+        <div class="arm-box">
+          <div class="sound-head">
+            <h2>Armed watch</h2>
+            <button id="arm" class="toggle" type="button" aria-pressed="false">Arm</button>
+          </div>
+          <p id="arm-state" class="muted">Disarmed. Nothing is recorded until you arm it.</p>
+          <div class="meters">
+            <label>Motion
+              <span class="meter"><i id="motion-bar"></i></span>
+            </label>
+            <label>Sound
+              <span class="meter"><i id="sound-bar"></i></span>
+            </label>
+          </div>
+          <label class="picker">Saved clips
+            <input id="clip-limit" type="number" min="1" max="500" value="100">
+          </label>
+          <label class="slider">Motion sensitivity
+            <input id="motion-sensitivity" type="range" min="1" max="100" value="45">
+          </label>
+          <label class="slider">Sound sensitivity
+            <input id="sound-sensitivity" type="range" min="1" max="100" value="55">
+          </label>
+          <label class="slider">Pause after an alert (seconds)
+            <input id="cooldown" type="range" min="5" max="180" value="20">
+          </label>
+          <div class="sound-head">
+            <h2>Alert log</h2>
+            <button id="clear-log" class="ghost" type="button">Clear log</button>
+          </div>
+          <div id="events" class="events"></div>
+        </div>
+
         <label class="picker">Room microphone
           <select id="mic-select"></select>
         </label>
@@ -75,9 +128,10 @@
         <label class="picker">Speaker
           <select id="speaker-select"></select>
         </label>
-        <button id="talk" class="talk" type="button">
+        <button id="talk" class="talk" type="button" draggable="false">
           <span class="talk-title">Hold to talk</span>
           <span class="talk-sub">Speaks from this PC</span>
+          <span class="talk-meter" aria-hidden="true"><span class="talk-meter-fill"></span></span>
         </button>
         <p id="talk-error" class="alert" hidden></p>
         <label class="slider">Voice
@@ -97,7 +151,17 @@
     </div>
 
     <footer>
-      <p>Watching the PC that is running Sentry Room. Close that window to turn the camera off.</p>
+      <p>The camera turns on when you choose one or when the watch is armed. It stays on while armed, and turns off when nobody is watching and it is disarmed.</p>
+      <form id="reset-form" class="reset" hidden>
+        <p>Factory reset removes the code, signs everyone out, and turns the camera off. You will create a new code. This does not show the old one.</p>
+        <label class="field" for="reset-pin">Current code
+          <input id="reset-pin" type="password" autocomplete="current-password" maxlength="64" required>
+        </label>
+        <p id="reset-error" class="alert" hidden></p>
+        <button class="primary" type="submit">Reset this PC</button>
+        <button id="reset-cancel" class="texty" type="button">Cancel</button>
+      </form>
+      <button id="reset-open" class="texty" type="button">Factory reset</button>
       <p id="clock" class="muted"></p>
     </footer>
   </div>

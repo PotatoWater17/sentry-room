@@ -1,4 +1,5 @@
 const loginView = document.querySelector("#login");
+const setupView = document.querySelector("#setup");
 const roomView = document.querySelector("#room");
 const loginForm = document.querySelector("#login-form");
 const pinInput = document.querySelector("#pin");
@@ -15,6 +16,13 @@ const toast = document.querySelector("#toast");
 const talkBtn = document.querySelector("#talk");
 const talkError = document.querySelector("#talk-error");
 const listenBtn = document.querySelector("#listen");
+const armBtn = document.querySelector("#arm");
+const armState = document.querySelector("#arm-state");
+const eventsEl = document.querySelector("#events");
+const clipLimit = document.querySelector("#clip-limit");
+const motionSensitivity = document.querySelector("#motion-sensitivity");
+const soundSensitivity = document.querySelector("#sound-sensitivity");
+const cooldownInput = document.querySelector("#cooldown");
 const listenError = document.querySelector("#listen-error");
 const banner = document.querySelector("#secure-banner");
 const machine = document.querySelector("#machine");
@@ -35,6 +43,7 @@ let listenPlayer = null;
 let wakeLock = null;
 let fillingDevices = false;
 let deviceSig = "";
+let eventSig = null;
 
 const talk = {
   stream: null,
@@ -86,20 +95,36 @@ function showLogin(message) {
   releaseTalk();
   stopListen();
   video.removeAttribute("src");
+  connecting.textContent = "Choose a camera";
+  setupView.hidden = true;
   roomView.hidden = true;
   loginView.hidden = false;
+  document.querySelector("#reset-form").hidden = true;
   if (message) {
     loginError.hidden = false;
     loginError.textContent = message;
   }
 }
 
+function showSetup() {
+  signedIn = false;
+  clearInterval(statusTimer);
+  releaseTalk();
+  stopListen();
+  video.removeAttribute("src");
+  loginView.hidden = true;
+  roomView.hidden = true;
+  setupView.hidden = false;
+}
+
 function showRoom() {
   signedIn = true;
   loginView.hidden = true;
+  setupView.hidden = true;
   roomView.hidden = false;
   connecting.hidden = false;
-  video.src = "/video.mjpg?t=" + Date.now();
+  connecting.textContent = "Choose a camera";
+  video.removeAttribute("src");
   loadSounds();
   refreshStatus();
   clearInterval(statusTimer);
@@ -126,15 +151,14 @@ function fillBanner() {
     banner.hidden = true;
     return;
   }
-  const remote = info.links.filter((link) => link.kind !== "local");
-  const preferred = remote.filter((link) => link.kind === "tailscale");
-  const shown = preferred.length ? preferred : remote;
+  const remote = info.links.filter((link) => link.trusted || link.kind === "tailscale");
+  const shown = remote.length ? remote : info.links.filter((link) => link.kind !== "local");
   if (!shown.length) {
     banner.hidden = true;
     return;
   }
   const note = document.createElement("p");
-  note.textContent = "To speak through the PC speakers, open a secure link and continue past the certificate warning. Watching and sound buttons work on this page.";
+  note.textContent = "Open this address on your phone. It is trusted, so the browser does not show a privacy warning.";
   banner.append(note);
   for (const link of shown) {
     const anchor = document.createElement("a");
@@ -155,9 +179,36 @@ async function boot() {
   loginHost.textContent = "Camera and speakers on " + info.name + ".";
   machine.textContent = info.name;
   fillBanner();
+  if (info.needsSetup) {
+    showSetup();
+    return;
+  }
   const me = await fetch("/api/me");
   if (me.ok) showRoom();
 }
+
+document.querySelector("#setup-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const setupError = document.querySelector("#setup-error");
+  setupError.hidden = true;
+  const pin = document.querySelector("#setup-pin").value;
+  const confirm = document.querySelector("#setup-confirm").value;
+  const res = await fetch("/api/setup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pin, confirm }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    setupError.hidden = false;
+    setupError.textContent = data.error || "Could not save the code.";
+    return;
+  }
+  document.querySelector("#setup-pin").value = "";
+  document.querySelector("#setup-confirm").value = "";
+  info.needsSetup = false;
+  showRoom();
+});
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -181,12 +232,43 @@ loginForm.addEventListener("submit", async (event) => {
 document.querySelector("#reveal").addEventListener("click", () => {
   const showing = pinInput.type === "text";
   pinInput.type = showing ? "password" : "text";
-  document.querySelector("#reveal").textContent = showing ? "Show PIN" : "Hide PIN";
+  document.querySelector("#reveal").textContent = showing ? "Show code" : "Hide code";
 });
 
 document.querySelector("#signout").addEventListener("click", async () => {
   await fetch("/api/logout", { method: "POST" });
   showLogin();
+});
+
+document.querySelector("#reset-open").addEventListener("click", () => {
+  document.querySelector("#reset-form").hidden = false;
+  document.querySelector("#reset-error").hidden = true;
+  document.querySelector("#reset-pin").focus();
+});
+
+document.querySelector("#reset-cancel").addEventListener("click", () => {
+  document.querySelector("#reset-form").hidden = true;
+  document.querySelector("#reset-pin").value = "";
+});
+
+document.querySelector("#reset-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const resetError = document.querySelector("#reset-error");
+  resetError.hidden = true;
+  const res = await fetch("/api/reset", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pin: document.querySelector("#reset-pin").value }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    resetError.hidden = false;
+    resetError.textContent = data.error || "Could not reset.";
+    return;
+  }
+  document.querySelector("#reset-pin").value = "";
+  if (info) info.needsSetup = true;
+  showSetup();
 });
 
 async function refreshStatus() {
@@ -197,6 +279,10 @@ async function refreshStatus() {
   }
   if (!res.ok) return;
   const data = await res.json();
+  if (data.camera && data.camera.on && !String(video.src).includes("/video.mjpg")) {
+    connecting.hidden = true;
+    video.src = "/video.mjpg?t=" + Date.now();
+  }
   if (data.camera && data.camera.ok) {
     cameraNote.hidden = true;
   } else if (data.camera && data.camera.error) {
@@ -204,6 +290,7 @@ async function refreshStatus() {
     cameraNote.textContent = data.camera.error;
   }
   applyDevices(data);
+  applyWatch(data.watch);
   for (const button of soundsEl.querySelectorAll("button")) {
     button.classList.toggle("on", button.dataset.id === data.looping);
   }
@@ -246,15 +333,15 @@ async function playSound(sound) {
 
 document.querySelector("#stop").addEventListener("click", stopSpeakers);
 
-function fillSelect(select, options, selected, placeholder) {
+function fillSelect(select, options, selected, placeholder, blankFirst) {
   select.replaceChildren();
-  if (!options.length) {
+  if (blankFirst || !options.length) {
     const option = document.createElement("option");
     option.value = "";
     option.textContent = placeholder;
     select.append(option);
-    return;
   }
+  if (!options.length) return;
   for (const item of options) {
     const option = document.createElement("option");
     option.value = String(item.key);
@@ -270,13 +357,13 @@ function applyDevices(data) {
   const speakers = data.speakers || [];
   const microphones = data.microphones || [];
   const sig = JSON.stringify([cameras, speakers, microphones]);
-  const cameraKey = data.camera ? String(data.camera.index) : "";
+  const cameraKey = data.camera && data.camera.on && data.camera.index != null ? String(data.camera.index) : "";
   const speakerKey = data.speaker && data.speaker.key ? data.speaker.key : "";
   const micKey = data.microphone && data.microphone.key ? data.microphone.key : "";
   if (sig !== deviceSig) {
     fillingDevices = true;
     deviceSig = sig;
-    fillSelect(cameraSelect, cameras, cameraKey, "Checking cameras…");
+    fillSelect(cameraSelect, cameras, cameraKey, "Choose a camera", true);
     fillSelect(speakerSelect, speakers, speakerKey, "No speakers found");
     fillSelect(micSelect, microphones, micKey, "No microphones found");
     fillingDevices = false;
@@ -284,6 +371,7 @@ function applyDevices(data) {
   }
   if (document.activeElement === cameraSelect || document.activeElement === speakerSelect || document.activeElement === micSelect) return;
   if (cameraKey) cameraSelect.value = cameraKey;
+  else cameraSelect.value = "";
   if (speakerKey && [...speakerSelect.options].some((option) => option.value === speakerKey)) speakerSelect.value = speakerKey;
   if (micKey && [...micSelect.options].some((option) => option.value === micKey)) micSelect.value = micKey;
 }
@@ -303,6 +391,7 @@ cameraSelect.addEventListener("change", async () => {
     return;
   }
   showToast("Switching camera");
+  connecting.textContent = "Starting camera…";
   connecting.hidden = false;
   video.src = "/video.mjpg?t=" + Date.now();
 });
@@ -434,7 +523,7 @@ async function beginTalk() {
   }
   if (!window.isSecureContext) {
     talkError.hidden = false;
-    talkError.textContent = "Open one of the secure https links above, then continue past the certificate warning.";
+    talkError.textContent = "Open the trusted phone address above, then hold the button again.";
     return;
   }
   const ctx = new AudioContext();
@@ -479,7 +568,7 @@ async function beginTalk() {
   proc.onaudioprocess = (event) => {
     if (gen !== generation) return;
     const input = event.inputBuffer.getChannelData(0);
-    talkBtn.style.setProperty("--level", String(Math.min(1, rms(input) * 5)));
+    talkBtn.style.setProperty("--level", String(Math.min(1, rms(input) * 9)));
     const pcm = floatTo16(input);
     if (talk.mode === "ws" && talk.ws && talk.ws.readyState === 1) {
       talk.ws.send(pcm);
@@ -562,10 +651,23 @@ function pressTalk(event) {
   beginTalk();
 }
 
+function blockCallout(event) {
+  if (event.cancelable) event.preventDefault();
+}
+
+talkBtn.addEventListener("touchstart", (event) => {
+  blockCallout(event);
+  pressTalk(event);
+}, { passive: false });
+talkBtn.addEventListener("touchmove", blockCallout, { passive: false });
+talkBtn.addEventListener("touchend", releaseTalk);
+talkBtn.addEventListener("touchcancel", releaseTalk);
+talkBtn.addEventListener("gesturestart", blockCallout, { passive: false });
+talkBtn.addEventListener("selectstart", blockCallout);
 talkBtn.addEventListener("pointerdown", pressTalk, { passive: false });
 talkBtn.addEventListener("pointerup", releaseTalk);
 talkBtn.addEventListener("pointercancel", releaseTalk);
-talkBtn.addEventListener("contextmenu", (event) => event.preventDefault());
+talkBtn.addEventListener("contextmenu", blockCallout);
 
 window.addEventListener("keydown", (event) => {
   if (event.code === "Escape" && signedIn && !document.fullscreenElement) stopSpeakers();
@@ -708,6 +810,96 @@ async function startListen() {
     ctx.close().catch(() => {});
   }
 }
+
+function applyWatch(watch) {
+  if (!watch) return;
+  const armed = Boolean(watch.armed);
+  armBtn.setAttribute("aria-pressed", armed ? "true" : "false");
+  armBtn.textContent = armed ? "Armed" : "Arm";
+  if (watch.recording) {
+    armState.textContent = "Recording a 10 second clip.";
+  } else if (armed) {
+    armState.textContent = `Armed. ${watch.count} clip${watch.count === 1 ? "" : "s"} saved, newest kept up to ${watch.clipLimit}.`;
+  } else {
+    armState.textContent = "Disarmed. Nothing is recorded until you arm it.";
+  }
+  document.querySelector("#motion-bar").style.width = `${watch.motion || 0}%`;
+  document.querySelector("#sound-bar").style.width = `${watch.loud || 0}%`;
+  if (document.activeElement !== clipLimit) clipLimit.value = watch.clipLimit;
+  if (document.activeElement !== motionSensitivity) motionSensitivity.value = watch.motionSensitivity;
+  if (document.activeElement !== soundSensitivity) soundSensitivity.value = watch.soundSensitivity;
+  if (document.activeElement !== cooldownInput) cooldownInput.value = watch.cooldown;
+  const busy = eventsEl.querySelector("img.play") || [...eventsEl.querySelectorAll("audio")].some((node) => !node.paused && !node.ended);
+  const sig = (watch.events || []).map((event) => event.id).join(",");
+  if (busy || sig === eventSig) return;
+  eventSig = sig;
+  const rows = watch.events || [];
+  if (!rows.length) {
+    eventsEl.innerHTML = `<p class="empty">No alerts yet.</p>`;
+    return;
+  }
+  eventsEl.innerHTML = rows.map((event) => {
+    const why = event.reason === "motion+sound" ? "Motion and a loud sound" : event.reason === "sound" ? "Loud sound" : "Motion";
+    const audio = event.audio ? `<audio controls preload="none" src="/api/clips/${event.id}/audio"></audio>` : "";
+    return `<article class="event">
+      <img alt="" src="/api/clips/${event.id}/poster">
+      <div>
+        <strong>${why}</strong>
+        <p class="muted">${event.at}</p>
+        <button class="ghost play-clip" type="button" data-id="${event.id}">Play 10s</button>
+        ${audio}
+      </div>
+    </article>`;
+  }).join("");
+}
+
+armBtn.addEventListener("click", async () => {
+  const armed = armBtn.getAttribute("aria-pressed") !== "true";
+  const res = await fetch("/api/arm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ armed }),
+  });
+  if (res.status === 401) {
+    showLogin("Sign in again.");
+    return;
+  }
+  const data = await res.json().catch(() => ({}));
+  if (res.ok) applyWatch(data);
+});
+
+async function saveWatchSettings() {
+  await fetch("/api/arm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      clipLimit: Number(clipLimit.value),
+      motion: Number(motionSensitivity.value),
+      sound: Number(soundSensitivity.value),
+      cooldown: Number(cooldownInput.value),
+    }),
+  });
+}
+
+clipLimit.addEventListener("change", saveWatchSettings);
+motionSensitivity.addEventListener("change", saveWatchSettings);
+soundSensitivity.addEventListener("change", saveWatchSettings);
+cooldownInput.addEventListener("change", saveWatchSettings);
+
+document.querySelector("#clear-log").addEventListener("click", async () => {
+  const res = await fetch("/api/events/clear", { method: "POST" });
+  if (res.ok) applyWatch(await res.json());
+});
+
+eventsEl.addEventListener("click", (event) => {
+  const button = event.target.closest(".play-clip");
+  if (!button) return;
+  const card = button.closest(".event");
+  const image = card.querySelector("img");
+  image.classList.add("play");
+  image.src = `/api/clips/${button.dataset.id}/play?t=${Date.now()}`;
+  image.onload = () => image.classList.remove("play");
+});
 
 listenBtn.addEventListener("click", () => {
   if (listenBtn.getAttribute("aria-pressed") === "true") stopListen();
