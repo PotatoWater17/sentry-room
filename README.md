@@ -18,44 +18,54 @@ Sentry Room is a small Windows app that lets you watch this PC from a phone. Ope
 ## Requirements
 
 - Windows 10 or 11
-- Python 3.11 (the start script also accepts a generic `py -3` if 3.11 is missing)
-- A webcam and a microphone that Windows allows desktop apps to use
-- A speaker or headphone device
-- A phone on the same Tailscale network, or on the same home network
-- The first launch installs the Python libraries. That can take a few minutes.
+- [Python 3.11](https://www.python.org/downloads/windows/) from python.org, not the Microsoft Store
+- A webcam, a microphone, and a speaker or headphones
+- Optional: [Tailscale](https://tailscale.com/download) on this PC and on the phone, signed into the same account, if the phone is not on the same Wi-Fi
 
-Python packages, installed into `.venv` by the start script:
+During the Python install, leave **Install launcher for all users** checked, and check **Add python.exe to PATH**. The start script looks for the `py` launcher. If that box was missed, run the installer again and choose Modify.
 
-- aiohttp
-- numpy
-- opencv-python-headless
-- sounddevice
-- cryptography
+## Run it
 
-## Start
+1. Download or clone this folder: [github.com/PotatoWater17/sentry-room](https://github.com/PotatoWater17/sentry-room)
+2. Double-click **Start Sentry Room.bat**.
+3. The first launch creates a `.venv` folder and installs the libraries. Leave the window open. This can take a few minutes and only happens once.
+4. When the banner appears, copy the **PIN**. A browser page opens on this PC.
+5. On the phone, open the **Talk** line from that same window. It looks like `https://100.x.x.x:8787/`.
+6. The first visit shows a certificate warning because this PC signed the certificate. Continue once (Safari: Show Details, then visit this website. Chrome: Advanced, then proceed). Sign in with the PIN.
+7. Leave the Sentry Room window open. Closing it turns the camera off.
 
-1. Double-click **Start Sentry Room.bat**.
-2. Leave that window open. Closing it turns the camera off.
-3. Read the PIN in that window.
-4. A browser page opens on this PC. On your phone, use the Tailscale address printed in the window.
+If the phone cannot connect, double-click **Allow Firewall.bat** once and approve the prompt. That allows inbound TCP 8787 and 8788. Run it again after you change those ports in `config.json`.
 
-If the phone cannot connect, double-click **Allow Firewall.bat** once and approve the prompt. That opens inbound TCP 8787 and 8788.
+On this PC, `http://127.0.0.1:8787/` can talk as well, because the browser treats localhost as a secure page. From a phone, use the https address. The phone microphone does not work on a plain `http://` page.
 
-If the picture or room audio fails, open Windows Settings, then Privacy & security, and allow desktop apps to use the Camera and the Microphone.
+Same Wi-Fi uses the LAN address printed in the window. Away from home, use the Tailscale address, also printed there. Both need the firewall rule.
+
+To start from a terminal instead of the bat file:
+
+```bat
+py -3.11 -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe app.py
+```
+
+If `py -3.11` is missing, `py -3` is enough as long as it is Python 3.11 or newer.
+
+## If it does not start
+
+- The window says to install Python: install Python 3.11 from python.org, then double-click the bat file again.
+- `Could not listen on port 8787`: another Sentry Room window is already open, or another program is using that port. Close the extra window, or change `http_port` in `config.json` and run **Allow Firewall.bat** again.
+- No picture, or Listen fails: open Windows Settings, then Privacy & security, then Camera and Microphone, and allow desktop apps.
+- The camera menu is empty: close other apps that are using the webcam, then restart Sentry Room.
+- The speaker menu skipped a device: that device did not stay open in a short test. Pick another speaker. A short tone plays when a choice works.
+- Wrong PIN too many times: wait about a minute. The PIN in the window is the one that works. It is also stored in `config.json` on that PC.
+
+Libraries installed into `.venv` on first launch: aiohttp, numpy, opencv-python-headless, sounddevice, cryptography. You do not install these by hand unless the bat file reports that setup failed.
 
 ## Address
 
-On your phone open the **Talk** line printed at startup. It looks like:
+Use the **Talk** line printed at startup, `https://<address>:8787/`. Port 8788 is only a spare https address. The phone should use 8787.
 
-`https://<tailscale-ip>:8787/`
-
-The same port also accepts `http://<tailscale-ip>:8787/` for watching and sounds. The first https visit shows a certificate warning because this PC signed the certificate itself. Continue once, then sign in with the PIN.
-
-On this PC, `http://127.0.0.1:8787/` can talk as well, because the browser treats localhost as a secure page.
-
-Port 8788 is a second https address for an old bookmark. The phone should use 8787.
-
-If you would rather skip the certificate warning, with the app already running:
+To skip the certificate warning, with the app already running:
 
 ```bat
 tailscale serve --bg --https=443 http://127.0.0.1:8787
@@ -65,7 +75,7 @@ Then open the `https://<this-pc>.<tailnet>.ts.net` address Tailscale prints. Tha
 
 ## Settings
 
-`config.json` is created on the PC the first time the app runs. It is not part of the git repo, because it holds the PIN. Edit it, then restart:
+`config.json` is created on the PC the first time the app runs, with a new 6-digit PIN. It is not part of the git repo. Edit it, then restart:
 
 | Key | Meaning |
 | --- | --- |
