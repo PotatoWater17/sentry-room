@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0c1218">
+  <meta name="robots" content="noindex">
+  <title>Clip log — Sentry Room</title>
+  <link rel="icon" href="/static/icon.png">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="view">
+    <header class="top">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="11" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="4"/></svg>
+        <div>
+          <strong>Clip log</strong>
+          <span class="muted">Motion and sound recordings</span>
+        </div>
+      </div>
+      <nav class="top-actions">
+        <a class="texty" href="/">Monitor</a>
+        <button id="signout" class="texty" type="button">Sign out</button>
+      </nav>
+    </header>
+
+    <p id="gate" class="alert" hidden>Sign in on the monitor page to open clips.</p>
+
+    <div id="library" class="log-layout" hidden>
+      <section class="player-card">
+        <p id="player-empty" class="player-empty">No clips yet. Arm the watch, and movement or a loud sound will show up here.</p>
+        <video id="player" controls playsinline preload="metadata" hidden></video>
+        <h2 id="clip-title">Clip</h2>
+        <p id="clip-meta" class="muted"></p>
+        <div class="transport">
+          <button id="prev" type="button">Previous</button>
+          <button id="back" type="button">Back 5s</button>
+          <button id="forward" type="button">Forward 5s</button>
+          <button id="next" type="button">Next</button>
+          <div class="speed" role="group" aria-label="Playback speed">
+            <button type="button" data-speed="1" aria-pressed="true">1×</button>
+            <button type="button" data-speed="1.5" aria-pressed="false">1.5×</button>
+            <button type="button" data-speed="2" aria-pressed="false">2×</button>
+          </div>
+          <a id="download" class="texty" href="/" download hidden>Download</a>
+        </div>
+      </section>
+      <aside class="clip-panel">
+        <div class="sound-head">
+          <h2>Saved clips</h2>
+          <button id="clear-log" class="ghost" type="button">Clear log</button>
+        </div>
+        <div id="clip-items" class="clip-items"></div>
+      </aside>
+    </div>
+  </div>
+  <script src="/static/log.js"></script>
+</body>
+</html>

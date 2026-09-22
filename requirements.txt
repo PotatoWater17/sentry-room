@@ -3,3 +3,4 @@ numpy>=1.26
 opencv-python-headless>=4.10
 sounddevice>=0.4.6
 cryptography>=42
+imageio-ffmpeg>=0.5

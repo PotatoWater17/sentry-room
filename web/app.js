@@ -18,7 +18,6 @@ const talkError = document.querySelector("#talk-error");
 const listenBtn = document.querySelector("#listen");
 const armBtn = document.querySelector("#arm");
 const armState = document.querySelector("#arm-state");
-const eventsEl = document.querySelector("#events");
 const clipLimit = document.querySelector("#clip-limit");
 const motionSensitivity = document.querySelector("#motion-sensitivity");
 const soundSensitivity = document.querySelector("#sound-sensitivity");
@@ -43,7 +42,6 @@ let listenPlayer = null;
 let wakeLock = null;
 let fillingDevices = false;
 let deviceSig = "";
-let eventSig = null;
 
 const talk = {
   stream: null,
@@ -829,28 +827,6 @@ function applyWatch(watch) {
   if (document.activeElement !== motionSensitivity) motionSensitivity.value = watch.motionSensitivity;
   if (document.activeElement !== soundSensitivity) soundSensitivity.value = watch.soundSensitivity;
   if (document.activeElement !== cooldownInput) cooldownInput.value = watch.cooldown;
-  const busy = eventsEl.querySelector("img.play") || [...eventsEl.querySelectorAll("audio")].some((node) => !node.paused && !node.ended);
-  const sig = (watch.events || []).map((event) => event.id).join(",");
-  if (busy || sig === eventSig) return;
-  eventSig = sig;
-  const rows = watch.events || [];
-  if (!rows.length) {
-    eventsEl.innerHTML = `<p class="empty">No alerts yet.</p>`;
-    return;
-  }
-  eventsEl.innerHTML = rows.map((event) => {
-    const why = event.reason === "motion+sound" ? "Motion and a loud sound" : event.reason === "sound" ? "Loud sound" : "Motion";
-    const audio = event.audio ? `<audio controls preload="none" src="/api/clips/${event.id}/audio"></audio>` : "";
-    return `<article class="event">
-      <img alt="" src="/api/clips/${event.id}/poster">
-      <div>
-        <strong>${why}</strong>
-        <p class="muted">${event.at}</p>
-        <button class="ghost play-clip" type="button" data-id="${event.id}">Play 10s</button>
-        ${audio}
-      </div>
-    </article>`;
-  }).join("");
 }
 
 armBtn.addEventListener("click", async () => {
@@ -885,21 +861,6 @@ clipLimit.addEventListener("change", saveWatchSettings);
 motionSensitivity.addEventListener("change", saveWatchSettings);
 soundSensitivity.addEventListener("change", saveWatchSettings);
 cooldownInput.addEventListener("change", saveWatchSettings);
-
-document.querySelector("#clear-log").addEventListener("click", async () => {
-  const res = await fetch("/api/events/clear", { method: "POST" });
-  if (res.ok) applyWatch(await res.json());
-});
-
-eventsEl.addEventListener("click", (event) => {
-  const button = event.target.closest(".play-clip");
-  if (!button) return;
-  const card = button.closest(".event");
-  const image = card.querySelector("img");
-  image.classList.add("play");
-  image.src = `/api/clips/${button.dataset.id}/play?t=${Date.now()}`;
-  image.onload = () => image.classList.remove("play");
-});
 
 listenBtn.addEventListener("click", () => {
   if (listenBtn.getAttribute("aria-pressed") === "true") stopListen();

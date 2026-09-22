@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#1565c0">
+  <meta name="theme-color" content="#0c1218">
   <meta name="robots" content="noindex">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Sentry Room">
@@ -61,7 +61,10 @@
           <span id="machine" class="muted"></span>
         </div>
       </div>
-      <button id="signout" class="texty" type="button">Sign out</button>
+      <nav class="top-actions">
+        <a class="texty" href="/log">Clips</a>
+        <button id="signout" class="texty" type="button">Sign out</button>
+      </nav>
     </header>
 
     <section id="secure-banner" class="banner" hidden></section>
@@ -107,11 +110,7 @@
           <label class="slider">Pause after an alert (seconds)
             <input id="cooldown" type="range" min="5" max="180" value="20">
           </label>
-          <div class="sound-head">
-            <h2>Alert log</h2>
-            <button id="clear-log" class="ghost" type="button">Clear log</button>
-          </div>
-          <div id="events" class="events"></div>
+          <a class="clip-link" href="/log">Open clip log</a>
         </div>
 
         <label class="picker">Room microphone

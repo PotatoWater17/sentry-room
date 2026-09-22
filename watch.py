@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import shutil
+import subprocess
 import time
 import wave
 from pathlib import Path
@@ -57,7 +58,7 @@ class SentryWatch:
             "motion": round(min(100.0, self.camera.motion / 0.08 * 100.0), 1),
             "loud": round(min(100.0, self.audio.loudness / 0.2 * 100.0), 1),
             "count": len(events),
-            "events": events[:40],
+            "events": events,
         }
 
     async def apply(self, changes: dict) -> dict:
@@ -145,7 +146,9 @@ class SentryWatch:
         print(f"Armed alert: {reason} {clip_id}", flush=True)
         try:
             try:
-                await asyncio.to_thread(self.audio.play, "alert", 0.9, False)
+                spoke = await asyncio.to_thread(self.audio.play, "recording", 1.0, False)
+                if not spoke:
+                    await asyncio.to_thread(self.audio.play, "alert", 0.9, False)
             except AudioUnavailable:
                 pass
             pre_frames = self.camera.recent_jpegs()
@@ -190,6 +193,7 @@ class SentryWatch:
             "frames": saved,
             "fps": fps,
             "audio": (folder / "audio.wav").exists(),
+            "video": write_clip_video(folder, fps),
         }
         (folder / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
         log = self._read_log()
@@ -233,6 +237,56 @@ class SentryWatch:
         self.root.mkdir(parents=True, exist_ok=True)
         path = self.root / "log.json"
         path.write_text(json.dumps(events), encoding="utf-8")
+
+
+def ffmpeg_exe() -> str | None:
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    try:
+        import imageio_ffmpeg
+    except ImportError:
+        return None
+    try:
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return None
+
+
+def write_clip_video(folder: Path, fps: int) -> bool:
+    target = folder / "clip.mp4"
+    if target.exists() and target.stat().st_size > 500:
+        return True
+    exe = ffmpeg_exe()
+    frames = sorted(folder.glob("*.jpg"))
+    if exe is None or not frames:
+        return False
+    command = [
+        exe, "-y", "-hide_banner", "-loglevel", "error",
+        "-framerate", str(max(2, int(fps or 8))),
+        "-i", str(folder / "%03d.jpg"),
+    ]
+    wav = folder / "audio.wav"
+    if wav.exists():
+        command += ["-i", str(wav)]
+    command += [
+        "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "veryfast", "-movflags", "+faststart",
+    ]
+    if wav.exists():
+        command += ["-c:a", "aac", "-b:a", "128k"]
+    command.append(str(target))
+    try:
+        subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            timeout=90,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return target.exists() and target.stat().st_size > 500
 
 
 def _safe_id(clip_id: str) -> bool:

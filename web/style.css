@@ -1,18 +1,19 @@
 :root {
-  color-scheme: light;
-  --bg: #f4f8fc;
-  --bg-2: #e7f0f8;
-  --card: #ffffff;
-  --line: rgba(21, 84, 148, 0.16);
-  --text: #12304d;
-  --muted: #5d7590;
-  --amber: #1565c0;
-  --live: #e23b32;
-  --talk: #0d4f9e;
-  --talk-2: #1d74d6;
-  --ok: #0f7a4a;
-  --danger: #b42318;
-  --shadow: 0 18px 40px rgba(18, 48, 77, 0.08);
+  color-scheme: dark;
+  --bg: #0c1218;
+  --bg-2: #1c2836;
+  --card: #16202b;
+  --line: rgba(198, 220, 242, 0.28);
+  --text: #f4f8fc;
+  --muted: #d5e2ef;
+  --amber: #9ec8ff;
+  --live: #ff6b61;
+  --talk: #1456a8;
+  --talk-2: #2f7fe0;
+  --ok: #9dffc0;
+  --danger: #ffc7c2;
+  --field: #0e1620;
+  --shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
   font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
 }
 
@@ -85,15 +86,18 @@ h2 { margin: 0; font-size: 1.05rem; }
 
 .field { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; font-size: 0.92rem; }
 
-input[type="password"], input[type="text"] {
+input[type="password"], input[type="text"], input[type="number"] {
   width: 100%;
-  border: 1px solid var(--line);
-  background: #f8fbfe;
+  border: 1px solid #8eabC6;
+  background: var(--field);
+  color: var(--text);
   border-radius: 14px;
   padding: 14px 16px;
   font-size: 1.35rem;
   letter-spacing: 0.18em;
 }
+
+input::placeholder { color: #d5e2ef; }
 
 .primary, .talk, .toggle, .ghost, .overlay, .texty {
   border: 0;
@@ -104,22 +108,22 @@ input[type="password"], input[type="text"] {
   width: 100%;
   margin-top: 14px;
   padding: 14px 16px;
-  background: var(--amber);
+  background: #1565c0;
   color: #ffffff;
   font-weight: 700;
 }
 
 .texty, .ghost, .overlay {
   background: transparent;
-  color: var(--muted);
+  color: #d7e8ff;
 }
 
 .texty { padding: 8px 0; }
 
 .alert {
   margin: 10px 0 0;
-  color: var(--danger);
-  background: rgba(180, 35, 24, 0.08);
+  color: #ffffff;
+  background: #8a3030;
   border-radius: 12px;
   padding: 10px 12px;
 }
@@ -131,15 +135,33 @@ input[type="password"], input[type="text"] {
   margin-bottom: 14px;
 }
 
+.top-actions { display: flex; align-items: center; gap: 16px; }
+.top-actions a { text-decoration: none; font-weight: 700; }
+
+.clip-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 14px;
+  min-height: 48px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #1565c0;
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 700;
+}
+
 .banner {
   padding: 14px 16px;
   margin-bottom: 14px;
   box-shadow: none;
-  background: #e8f2fc;
+  background: #1b3348;
+  color: var(--text);
 }
 
 .banner p { margin: 0 0 8px; line-height: 1.45; }
-.banner a { display: block; color: var(--amber); word-break: break-all; margin-top: 6px; }
+.banner a { display: block; color: #d7e8ff; word-break: break-all; margin-top: 6px; }
 
 .layout { display: grid; gap: 16px; }
 
@@ -171,7 +193,8 @@ input[type="password"], input[type="text"] {
   gap: 7px;
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.72);
+  color: #ffffff;
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -221,11 +244,14 @@ input[type="password"], input[type="text"] {
   min-height: 46px;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid var(--line);
-  background: #f8fbfe;
+  border: 1px solid #8eabc6;
+  background: var(--field);
   color: var(--text);
   font-size: 1rem;
+  letter-spacing: 0;
 }
+
+.picker select option { background: #16202b; color: #f4f8fc; }
 
 .ghost {
   border: 1px solid var(--line);
@@ -252,9 +278,9 @@ input[type="password"], input[type="text"] {
 }
 
 .toggle[aria-pressed="true"] {
-  background: #e5f2ff;
-  color: var(--amber);
-  border-color: rgba(21, 101, 192, 0.45);
+  background: #1565c0;
+  color: #ffffff;
+  border-color: #1565c0;
 }
 
 .slider {
@@ -346,14 +372,14 @@ input[type="password"], input[type="text"] {
   display: block;
   height: 8px;
   border-radius: 99px;
-  background: #e3eef8;
+  background: #2a3b4e;
   overflow: hidden;
 }
 .meter i {
   display: block;
   height: 100%;
   width: 0;
-  background: #1565c0;
+  background: #7eb6ff;
 }
 
 .events { display: grid; gap: 10px; }
@@ -392,10 +418,12 @@ input[type="password"], input[type="text"] {
 }
 
 .sounds button.on {
-  background: #e5f2ff;
-  border-color: rgba(21, 101, 192, 0.7);
-  color: var(--amber);
+  background: #1565c0;
+  border-color: #8ebfff;
+  color: #ffffff;
 }
+
+.sounds button.on small { color: #e7f2ff; }
 
 .sounds button small {
   display: block;
@@ -436,6 +464,81 @@ footer p { margin: 0; max-width: 62ch; line-height: 1.4; }
 
 @keyframes pulse {
   50% { opacity: 0.45; }
+}
+
+.log-layout { display: grid; gap: 16px; }
+
+.player-card, .clip-panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 16px;
+}
+
+.player-card video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000000;
+  border-radius: 14px;
+  display: block;
+}
+
+.player-empty {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  margin: 0;
+  border-radius: 14px;
+  background: #0a1016;
+  color: #f4f8fc;
+  text-align: center;
+  padding: 20px;
+}
+
+.transport {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.transport button, .speed button {
+  min-height: 42px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid #8eabc6;
+  background: var(--bg-2);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.speed { display: flex; gap: 8px; }
+.speed button[aria-pressed="true"] { background: #1565c0; color: #ffffff; border-color: #1565c0; }
+
+.clip-panel h2 { margin-bottom: 12px; }
+.clip-items { display: grid; gap: 8px; max-height: 70vh; overflow: auto; }
+
+.clip-row {
+  display: grid;
+  grid-template-columns: 104px 1fr;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  text-align: left;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #101820;
+  color: var(--text);
+}
+
+.clip-row.current { border-color: #9ec8ff; background: #1b3348; }
+.clip-row img { width: 104px; height: 68px; object-fit: cover; border-radius: 8px; background: #000; }
+.clip-row strong, .clip-row span { display: block; }
+.clip-row span { color: var(--muted); font-size: 0.86rem; margin-top: 4px; }
+
+@media (min-width: 900px) {
+  .log-layout { grid-template-columns: 1.45fr 0.8fr; align-items: start; }
+  .clip-panel { position: sticky; top: 16px; }
 }
 
 .stage:fullscreen, .stage:-webkit-full-screen {

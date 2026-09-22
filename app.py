@@ -39,7 +39,7 @@ import numpy as np
 
 from audio import RATE, AudioEngine, AudioUnavailable, load_sounds, resample
 from camera import Camera, write_icon
-from watch import SentryWatch
+from watch import SentryWatch, write_clip_video
 
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / "web"
@@ -539,6 +539,10 @@ async def index(_request: web.Request) -> web.FileResponse:
     return web.FileResponse(WEB / "index.html")
 
 
+async def log_page(_request: web.Request) -> web.FileResponse:
+    return web.FileResponse(WEB / "log.html")
+
+
 async def info(request: web.Request) -> web.Response:
     config = request.app["config"]
     return web.json_response({
@@ -732,6 +736,11 @@ async def set_arm(request: web.Request) -> web.Response:
     return web.json_response(state)
 
 
+async def list_events(request: web.Request) -> web.Response:
+    require(request)
+    return web.json_response(request.app["watch"].public())
+
+
 async def clear_events(request: web.Request) -> web.Response:
     require(request)
     watch: SentryWatch = request.app["watch"]
@@ -778,6 +787,23 @@ async def clip_audio(request: web.Request) -> web.Response:
     if folder is None or not (folder / "audio.wav").exists():
         return json_error(404, "That clip has no audio.")
     return web.FileResponse(folder / "audio.wav")
+
+
+async def clip_video(request: web.Request) -> web.Response:
+    require(request)
+    folder = request.app["watch"].clip_dir(request.match_info["clip_id"])
+    if folder is None:
+        return json_error(404, "That clip is gone.")
+    path = folder / "clip.mp4"
+    if not path.exists():
+        try:
+            meta = json.loads((folder / "meta.json").read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            meta = {}
+        ready = await asyncio.to_thread(write_clip_video, folder, int(meta.get("fps") or 8))
+        if not ready:
+            return json_error(404, "That clip could not be prepared.")
+    return web.FileResponse(path, headers={"Cache-Control": "private, max-age=3600"})
 
 
 async def clip_poster(request: web.Request) -> web.Response:
@@ -1211,6 +1237,7 @@ async def serve() -> None:
     app = web.Application(middlewares=[guard], client_max_size=1024 * 1024)
     app["config"] = config
     app["secret"] = secret
+    app["secret_stamp"] = secret_stamp(secret)
     app["audio"] = audio
     app["camera"] = camera
     app["sessions"] = {}
@@ -1224,6 +1251,7 @@ async def serve() -> None:
         watch.armed_at = time.monotonic()
     watch.start()
     app.router.add_get("/", index)
+    app.router.add_get("/log", log_page)
     app.router.add_get("/api/info", info)
     app.router.add_get("/api/me", me)
     app.router.add_post("/api/login", login)
@@ -1235,8 +1263,10 @@ async def serve() -> None:
     app.router.add_post("/api/play", play)
     app.router.add_post("/api/stop", stop_audio)
     app.router.add_post("/api/arm", set_arm)
+    app.router.add_get("/api/events", list_events)
     app.router.add_post("/api/events/clear", clear_events)
     app.router.add_get("/api/clips/{clip_id}/play", clip_play)
+    app.router.add_get("/api/clips/{clip_id}/video", clip_video)
     app.router.add_get("/api/clips/{clip_id}/audio", clip_audio)
     app.router.add_get("/api/clips/{clip_id}/poster", clip_poster)
     app.router.add_post("/api/camera", switch_camera)
@@ -1285,7 +1315,6 @@ async def serve() -> None:
     except Exception as exc:
         print(f"Extra secure port was not started: {exc}", flush=True)
 
-    app["secret_stamp"] = secret_stamp(secret)
     threading.Thread(target=watch_secret_file, args=(app,), name="sentry-code", daemon=True).start()
     if sys.stdin is not None and sys.stdin.isatty():
         threading.Thread(target=console_commands, args=(app,), name="sentry-console", daemon=True).start()

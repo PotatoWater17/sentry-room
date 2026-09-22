@@ -7,7 +7,7 @@ Sentry Room is a small Windows app that lets you watch this PC from a phone. Ope
 - Live webcam in the browser, with a clock burned into the picture so you can see that it is current.
 - A camera menu. The PC scans connected cameras at startup and labels each one with its resolution.
 - Listen to the room through a chosen microphone. While you hold talk, your own phone stops hearing the room so the speakers do not howl back into the call.
-- Armed watch. While armed, the camera and microphone stay on. Movement or a loud sound plays an alert and saves a 10 second clip with sound. The page keeps a log. The default is 100 clips; you can set that number, and the oldest clips are deleted to stay under it. Motion and sound sensitivity, and a pause between alerts, are adjustable. Your own voice on hold-to-talk does not count as a loud sound.
+- Armed watch. While armed, the camera and microphone stay on. Movement or a loud sound makes the speaker say "recording" and saves a 10 second clip with picture and room audio. Clips open on their own page, with play, pause, seek, speed, and next and previous. The default is 100 clips; you can set that number, and the oldest clips are deleted to stay under it. Motion and sound sensitivity, and a pause between alerts, are adjustable. Your own voice on hold-to-talk does not count as a loud sound.
 - Hold to talk from the phone microphone out of a chosen speaker. The space bar does the same from a keyboard.
 - A speaker menu. Choosing a speaker plays a short confirmation tone on that device.
 - Built-in sounds: doorbell, knock, phone, chime, ding, notify, fanfare, alert, alarm, siren, critical, and unlock. Knock is a real door knock. Alarm and siren keep going until Stop audio.

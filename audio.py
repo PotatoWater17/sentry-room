@@ -133,6 +133,8 @@ BUILTIN_SOUNDS = [
     {"id": "doorbell", "label": "Doorbell", "loop": False, "file": None, "synth": "doorbell"},
     # sounds/knock.wav is the last three hits from BigSoundBank 0015, CC0, Joseph Sardin.
     {"id": "knock", "label": "Knock", "loop": False, "file": "knock.wav", "bundled": True, "synth": "knock"},
+    # sounds/recording.wav is a spoken "Recording" announcement played when a clip starts.
+    {"id": "recording", "label": "Recording", "loop": False, "file": "recording.wav", "bundled": True, "synth": "notify"},
     {"id": "phone", "label": "Phone", "loop": False, "file": "Ring01.wav", "synth": "phone"},
     {"id": "chime", "label": "Chime", "loop": False, "file": "chimes.wav", "synth": "chime"},
     {"id": "ding", "label": "Ding", "loop": False, "file": "ding.wav", "synth": "ding"},
