@@ -1,0 +1,6 @@
+.venv/
+certs/
+config.json
+__pycache__/
+*.pyc
+web/icon.png

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#141910">
+  <meta name="robots" content="noindex">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Sentry Room">
+  <title>Sentry Room</title>
+  <link rel="icon" href="/static/icon.png">
+  <link rel="apple-touch-icon" href="/static/icon.png">
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main id="login" class="view">
+    <form id="login-form" class="card">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="11" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="4"/></svg>
+        <span>Sentry Room</span>
+      </div>
+      <h1>Open the room</h1>
+      <p id="login-host" class="muted">This PC's camera and speakers.</p>
+      <label class="field" for="pin">PIN
+        <input id="pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="32" required autofocus>
+      </label>
+      <button id="reveal" class="texty" type="button">Show PIN</button>
+      <p id="login-error" class="alert" hidden></p>
+      <button class="primary" type="submit">Open monitor</button>
+      <p class="fine">The PIN is printed in the Sentry Room window on the PC. Add this page to your home screen to use it like an app.</p>
+    </form>
+  </main>
+
+  <div id="room" class="view" hidden>
+    <header class="top">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="11" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="4"/></svg>
+        <div>
+          <strong>Sentry Room</strong>
+          <span id="machine" class="muted"></span>
+        </div>
+      </div>
+      <button id="signout" class="texty" type="button">Sign out</button>
+    </header>
+
+    <section id="secure-banner" class="banner" hidden></section>
+
+    <div class="layout">
+      <section class="watch">
+        <div id="stage" class="stage">
+          <img id="video" alt="Live view from the PC webcam">
+          <div class="live"><i></i> Live</div>
+          <button id="full" class="overlay" type="button">Full screen</button>
+          <p id="connecting">Starting camera…</p>
+        </div>
+        <p id="camera-note" class="note" hidden></p>
+        <label class="picker">Camera
+          <select id="camera-select"></select>
+        </label>
+      </section>
+
+      <section class="panel">
+        <label class="picker">Room microphone
+          <select id="mic-select"></select>
+        </label>
+        <div class="pair">
+          <button id="listen" class="toggle" type="button" aria-pressed="false">Listen to room</button>
+          <label class="slider">Room
+            <input id="room-volume" type="range" min="0" max="150" value="80">
+          </label>
+        </div>
+        <p id="listen-error" class="alert" hidden></p>
+
+        <label class="picker">Speaker
+          <select id="speaker-select"></select>
+        </label>
+        <button id="talk" class="talk" type="button">
+          <span class="talk-title">Hold to talk</span>
+          <span class="talk-sub">Speaks from this PC</span>
+        </button>
+        <p id="talk-error" class="alert" hidden></p>
+        <label class="slider">Voice
+          <input id="voice-volume" type="range" min="0" max="200" value="100">
+        </label>
+
+        <div class="sound-head">
+          <h2>Sounds</h2>
+          <button id="stop" class="ghost" type="button">Stop audio</button>
+        </div>
+        <label class="slider">Effects
+          <input id="sound-volume" type="range" min="0" max="150" value="85">
+        </label>
+        <div id="sounds" class="sounds"></div>
+        <p id="toast" class="toast" role="status" hidden></p>
+      </section>
+    </div>
+
+    <footer>
+      <p>Watching the PC that is running Sentry Room. Close that window to turn the camera off.</p>
+      <p id="clock" class="muted"></p>
+    </footer>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

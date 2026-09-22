@@ -1,0 +1,17 @@
+{
+  "name": "Sentry Room",
+  "short_name": "Sentry",
+  "description": "Watch this PC's camera and play sound through its speakers.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#141910",
+  "theme_color": "#141910",
+  "icons": [
+    {
+      "src": "/static/icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

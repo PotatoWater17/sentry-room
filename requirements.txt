@@ -1,0 +1,5 @@
+aiohttp>=3.10,<4
+numpy>=1.26
+opencv-python-headless>=4.10
+sounddevice>=0.4.6
+cryptography>=42
