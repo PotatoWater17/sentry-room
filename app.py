@@ -42,6 +42,7 @@ from camera import Camera, write_icon
 from watch import SentryWatch, write_clip_video
 
 ROOT = Path(__file__).resolve().parent
+STATE = {"app": None, "loop": None, "stop": None, "ready": False, "error": None}
 WEB = ROOT / "web"
 CONFIG_PATH = ROOT / "config.json"
 SECRETS_PATH = ROOT / "secrets.json"
@@ -1071,6 +1072,46 @@ async def listen(request: web.Request) -> web.StreamResponse:
     return response
 
 
+def replace_code(new_code: str, confirm: str) -> str | None:
+    """Set a new sign-in code from this PC. The old code is not required or shown."""
+    problem = code_problem(str(new_code or "").strip(), str(confirm or "").strip())
+    if problem:
+        return problem
+    secret = make_secret(str(new_code).strip())
+    save_secret(secret)
+    app = STATE.get("app")
+    if app is not None:
+        apply_loaded_secret(app, secret)
+    return None
+
+
+def desktop_status() -> dict | None:
+    app = STATE.get("app")
+    if app is None:
+        return None
+    camera: Camera = app["camera"]
+    audio: AudioEngine = app["audio"]
+    cam = camera.snapshot()
+    age = cam["age"]
+    watch = app["watch"].public()
+    audio_state = audio.status()
+    return {
+        "armed": bool(watch.get("armed")),
+        "recording": bool(watch.get("recording")),
+        "clips": int(watch.get("count") or 0),
+        "viewers": int(app["stats"]["viewers"]),
+        "listeners": int(audio_state.get("listeners") or 0),
+        "cameraOn": bool(camera.is_running()),
+        "cameraError": None if camera.is_running() and cam["error"] is None else cam["error"],
+        "pictureMs": None if age is None else int(age * 1000),
+        "speaker": (audio_state.get("speaker") or {}).get("name") or "Off",
+        "microphone": (audio_state.get("microphone") or {}).get("name") or "Off",
+        "port": int(app["config"]["http_port"]),
+        "links": list(app.get("links") or []),
+        "codeSet": app["secret"] is not None,
+    }
+
+
 def print_banner(config: dict, links: list[dict], speaker: str, secret_ready: bool) -> None:
     print("", flush=True)
     print("=" * 62, flush=True)
@@ -1321,9 +1362,13 @@ async def serve() -> None:
     print_banner(config, links, speaker, secret is not None)
     if not https_ready:
         print("The https talk address is not running yet.", flush=True)
-    if "--no-browser" not in sys.argv:
+    if "--no-browser" not in sys.argv and "--gui" not in sys.argv:
         open_local(config["http_port"])
     stop = asyncio.Event()
+    STATE["app"] = app
+    STATE["loop"] = asyncio.get_running_loop()
+    STATE["stop"] = stop
+    STATE["ready"] = True
     try:
         await stop.wait()
     finally:

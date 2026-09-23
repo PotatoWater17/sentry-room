@@ -19,7 +19,7 @@ if not exist ".venv\Scripts\python.exe" (
     exit /b 1
   )
 )
-".venv\Scripts\python.exe" -c "import aiohttp, cv2, numpy, sounddevice, cryptography" >nul 2>&1
+".venv\Scripts\python.exe" -c "import aiohttp, cv2, numpy, sounddevice, cryptography, imageio_ffmpeg" >nul 2>&1
 if errorlevel 1 (
   echo Installing libraries...
   ".venv\Scripts\python.exe" -m pip install --upgrade pip
@@ -30,7 +30,10 @@ if errorlevel 1 (
     exit /b 1
   )
 )
-".venv\Scripts\python.exe" app.py
-echo.
-echo Sentry Room stopped.
-pause
+if not exist ".venv\Scripts\pythonw.exe" (
+  echo pythonw.exe is missing from the Python install.
+  pause
+  exit /b 1
+)
+start "" ".venv\Scripts\pythonw.exe" "%~dp0status_ui.py"
+exit /b 0

@@ -28,16 +28,16 @@ During the Python install, leave **Install launcher for all users** checked, and
 ## Run it
 
 1. Download or clone this folder: [github.com/PotatoWater17/sentry-room](https://github.com/PotatoWater17/sentry-room)
-2. Double-click **Start Sentry Room.bat**.
-3. The first launch creates a `.venv` folder and installs the libraries. Leave the window open. This can take a few minutes and only happens once.
+2. Double-click **Launch Sentry.bat**. The command window closes. A Sentry Room status window stays open. A Desktop shortcut is created so you can pin it to the taskbar.
+3. The first launch creates a `.venv` folder and installs the libraries. A command window may show during that install, then it closes. This can take a few minutes and only happens once.
 4. A browser page opens on this PC. The first visit asks you to **create a code** (6 to 64 characters). Type it twice. This code is not printed in the window and it is not saved where someone can read it.
 5. On the phone, open the address printed in that window. It looks like `https://this-pc.tailnet.ts.net/`. The browser trusts that address, so it does not say the connection is not private.
 6. Sign in with the code, then **choose a camera**. The picture stays off until you do. It also turns off when nobody is watching.
-7. Leave the Sentry Room window open. Closing it turns the camera off.
+7. Leave the Sentry Room status window open. Closing it turns the camera off. New code in that window replaces the sign-in code without asking for the old one.
 
 If the phone cannot connect, double-click **Allow Firewall.bat** once and approve the prompt. That allows inbound TCP 8787 and 8788. Run it again after you change those ports in `config.json`.
 
-To open Sentry Room whenever this PC signs in, double-click **Install At Sign In.bat** once. It waits about 20 seconds so Windows can finish starting the camera and speakers, then opens the same window. If Windows signs you in automatically, that happens right after power on. To turn it off, delete `Sentry Room.cmd` from the Startup folder. The setup window prints that path.
+To open Sentry Room whenever this PC signs in, double-click **Install Startup.bat** once. It waits about 20 seconds so Windows can finish starting the camera and speakers, then opens the status window. If Windows signs you in automatically, that happens right after power on. To turn it off, delete `Sentry Room.cmd` from the Startup folder.
 
 On this PC, `http://127.0.0.1:8787/` can talk as well, because the browser treats localhost as a secure page. From a phone, use the https address. The phone microphone does not work on a plain `http://` page.
 
@@ -104,8 +104,9 @@ To change the code, type `code` in the Sentry Room window and press Enter, or do
 - `camera.py` — opens only the camera someone selected, then lets it go when nobody is watching
 - `audio.py` — speaker mix, room listen, and device probing
 - `web/` — the phone page (`index.html`, `app.js`, `style.css`)
-- `Start Sentry Room.bat` — creates `.venv` if needed, installs libraries, runs the app
-- `Install At Sign In.bat` — starts the app when you sign in to Windows
+- `Launch Sentry.bat` — creates `.venv` if needed, installs libraries, opens the status window
+- `status_ui.py` — status window for running state, latency, and a new code (no current code needed)
+- `Install Startup.bat` — starts the app when you sign in to Windows
 - `Allow Firewall.bat` — inbound TCP rules for the two ports
 - `secrets.json` — hashed code, created on the PC, not in git
 - `certs/` — self-signed certificate, created on the PC, not in git
@@ -118,7 +119,7 @@ Paste the block below into a new Cursor chat opened on this folder.
 ```text
 This project is Sentry Room. It is a Windows app in this folder. The owner uses it on their own PC, from a phone on Tailscale, to watch the room while they are away. Repo: https://github.com/PotatoWater17/sentry-room
 
-Run it only with Start Sentry Room.bat. Do not leave a second app.py running, or it holds the speakers and ports 8787 and 8788. The sign-in code is a PBKDF2 hash in secrets.json (gitignored), not plaintext in config.json, and it is never printed. Never commit config.json, secrets.json, certs/, or .venv/. First launch with no hash shows a setup page. Factory reset is POST /api/reset and requires the current code. Typing code in the Sentry Room window, or running Change Code.bat, asks for the current code and replaces the hash. The running app reloads secrets.json and signs everyone out. Forgetting the code means deleting secrets.json on that PC while the app is stopped.
+Run it only with Launch Sentry.bat. Do not leave a second copy running, or it holds the speakers and ports 8787 and 8788. The sign-in code is a PBKDF2 hash in secrets.json (gitignored), not plaintext in config.json, and it is never printed. Never commit config.json, secrets.json, certs/, or .venv/. First launch with no hash shows a setup page. The status window New code button replaces the hash without asking for the old code. Change Code.bat still asks for the current code. Forgetting the code means deleting secrets.json on that PC while the app is stopped.
 
 Stack: Python 3.11, aiohttp, OpenCV (CAP_DSHOW, then MSMF), sounddevice callbacks at 48000 Hz, cryptography for a self-signed cert. Page is web/index.html, web/app.js, web/style.css. Blue and white theme.
 

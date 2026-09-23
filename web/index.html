@@ -76,6 +76,10 @@
           <div class="live"><i></i> Live</div>
           <button id="full" class="overlay" type="button">Full screen</button>
           <p id="connecting">Choose a camera</p>
+          <button id="mic-live" class="mic-live" type="button" role="switch" aria-checked="false" aria-pressed="false">
+            <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>
+            <span class="mic-live-label">Mic off</span>
+          </button>
         </div>
         <p id="camera-note" class="note" hidden></p>
         <label class="picker">Camera
@@ -117,7 +121,10 @@
           <select id="mic-select"></select>
         </label>
         <div class="pair">
-          <button id="listen" class="toggle" type="button" aria-pressed="false">Listen to room</button>
+          <button id="listen" class="switch" type="button" role="switch" aria-checked="false" aria-pressed="false">
+            <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>
+            <span id="listen-label">Mic off</span>
+          </button>
           <label class="slider">Room
             <input id="room-volume" type="range" min="0" max="150" value="80">
           </label>

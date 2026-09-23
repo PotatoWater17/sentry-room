@@ -16,6 +16,8 @@ const toast = document.querySelector("#toast");
 const talkBtn = document.querySelector("#talk");
 const talkError = document.querySelector("#talk-error");
 const listenBtn = document.querySelector("#listen");
+const micLive = document.querySelector("#mic-live");
+const listenLabel = document.querySelector("#listen-label");
 const armBtn = document.querySelector("#arm");
 const armState = document.querySelector("#arm-state");
 const clipLimit = document.querySelector("#clip-limit");
@@ -718,9 +720,19 @@ class RoomAudio {
   }
 }
 
+function setMicToggle(state) {
+  const on = state === "on" || state === "wait";
+  const label = state === "on" ? "Mic on" : state === "wait" ? "Connecting…" : "Mic off";
+  for (const button of [listenBtn, micLive]) {
+    button.setAttribute("aria-pressed", on ? "true" : "false");
+    button.setAttribute("aria-checked", state === "on" ? "true" : "false");
+  }
+  listenLabel.textContent = label;
+  micLive.querySelector(".mic-live-label").textContent = label;
+}
+
 function stopListen() {
-  listenBtn.setAttribute("aria-pressed", "false");
-  listenBtn.textContent = "Listen to room";
+  setMicToggle("off");
   if (listenCtrl) listenCtrl.abort();
   listenCtrl = null;
   listenPlayer = null;
@@ -737,8 +749,7 @@ video.addEventListener("error", () => {
 
 async function startListen() {
   listenError.hidden = true;
-  listenBtn.setAttribute("aria-pressed", "true");
-  listenBtn.textContent = "Connecting…";
+  setMicToggle("wait");
   const ctx = new AudioContext();
   ctx.resume();
   const ctrl = new AbortController();
@@ -768,8 +779,7 @@ async function startListen() {
     ctx.close().catch(() => {});
     return;
   }
-  listenBtn.setAttribute("aria-pressed", "true");
-  listenBtn.textContent = "Listening";
+  setMicToggle("on");
   const reader = res.body.getReader();
   let pending = new Uint8Array(0);
   let player = null;
@@ -862,10 +872,13 @@ motionSensitivity.addEventListener("change", saveWatchSettings);
 soundSensitivity.addEventListener("change", saveWatchSettings);
 cooldownInput.addEventListener("change", saveWatchSettings);
 
-listenBtn.addEventListener("click", () => {
+function toggleMic() {
   if (listenBtn.getAttribute("aria-pressed") === "true") stopListen();
   else startListen();
-});
+}
+
+listenBtn.addEventListener("click", toggleMic);
+micLive.addEventListener("click", toggleMic);
 
 setInterval(() => {
   if (!signedIn) return;

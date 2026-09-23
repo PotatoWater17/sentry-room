@@ -219,6 +219,57 @@ input::placeholder { color: #d5e2ef; }
   color: white;
 }
 
+.switch, .mic-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 14px 8px 8px;
+  border-radius: 999px;
+  border: 1px solid #8eabc6;
+  background: var(--bg-2);
+  color: #f4f8fc;
+  font-weight: 700;
+}
+
+.switch { flex: 1; }
+
+.switch-track {
+  position: relative;
+  width: 46px;
+  height: 28px;
+  border-radius: 99px;
+  background: #3d4e61;
+  flex: 0 0 auto;
+}
+
+.switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #f4f8fc;
+  transition: transform 120ms ease;
+}
+
+.switch[aria-pressed="true"] .switch-track,
+.mic-live[aria-pressed="true"] .switch-track { background: #1565c0; }
+
+.switch[aria-pressed="true"] .switch-knob,
+.mic-live[aria-pressed="true"] .switch-knob { transform: translateX(18px); }
+
+.mic-live {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 3;
+  min-height: 40px;
+  background: rgba(0, 0, 0, 0.72);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
 #connecting {
   inset: 0;
   display: grid;
